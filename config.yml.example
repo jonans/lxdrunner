@@ -1,0 +1,60 @@
+# Github Configuration
+
+pat: "fake_github_pat"
+hooksecret: "fake_webhook_secret"
+
+# LXD Configuration
+
+socket: /var/snap/lxd/common/lxd/unix.socket
+
+# LXD Runner Configuration
+#
+# Path for runner files cache directory
+pkgdir: pkgcache
+# Path for runner provisioning script
+setupscript: setuprunner.sh
+# Prefix used for naming resources ( GH runner names, LXD instances, etc )
+prefix: lxdrunner
+# Maximum number of runners that can run simultaenously
+max_workers: 10
+
+web_host: 0.0.0.0
+web_port: 5000
+web_tls: True
+
+# The config below maps a set of runner labels to specific LXD
+# settings (image, profile, and type). Currently this is limited
+# to a single chosen configuration until a method is found
+# to associate check_runs to labels.
+
+runnermap:
+
+  - name: Ubuntu Container Runner
+    labels: [self-hosted, x64, linux]
+    image: ubuntu/focal/cloud
+    profiles: [ default ]
+    type: container
+    runner_arch: x64
+    runner_os: linux
+
+  - name: Debian 10 Container Runner
+    labels: [self-hosted, x64, linux, debian]
+    image: debian/10/cloud
+    profiles: [ default ]
+    type: container
+    runner_arch: x64
+    runner_os: linux
+
+  - name: Ubuntu Virtual Machine Runner
+    labels: [self-hosted, x64, linux, vm]
+    image: ubuntu/focal/cloud/vm
+    profiles: [ default ]
+    type: virtual-machine
+    runner_arch: x64
+    runner_os: linux
+
+# Which of the above settings to use:
+
+activecfg: [self-hosted, x64, linux]
+
+rundelay: 10

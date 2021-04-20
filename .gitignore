@@ -1,0 +1,6 @@
+/config.yml
+/attic
+/build
+/dist
+/pkgcache
+__pycache__

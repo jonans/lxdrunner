@@ -1,0 +1,9 @@
+# toml needed for broken ubuntu pip. missing toml
+
+pylxd
+ghapi
+Flask
+pydantic
+goodconf[yaml]>=2.0*
+schedule
+
