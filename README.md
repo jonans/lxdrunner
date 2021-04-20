@@ -49,8 +49,8 @@ Requirements: Python 3.8 with pip
 - Edit config.yml adding GitHub tokens from setup above, adjust other settings as needed.
 - Copy needed LXD images locally, remotes are not yet supported.
 - Start LXDRunner server : `python -m lxdrunner`
-- Run some github actions worklows to test.
-- You can install app to run outside folder with: `pip install ./`
+- Run some github actions workflows to test.
+- You can install app as `lxdrunner` to run outside folder with: `pip install ./`
 
 ## How it works
 
