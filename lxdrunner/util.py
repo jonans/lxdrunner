@@ -30,3 +30,11 @@ def threadit(func, **kwargs):
     thread = threading.Thread(target=func, daemon=True, **kwargs)
     thread.start()
     return thread
+
+
+def env_str(data):
+
+    sdata = ""
+    for key, val in data.items():
+        sdata += f"{key}={val}\n"
+    return sdata

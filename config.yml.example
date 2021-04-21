@@ -36,6 +36,8 @@ runnermap:
     type: container
     runner_arch: x64
     runner_os: linux
+    # Override setup script
+    #setup_script: 
 
   - name: Debian 10 Container Runner
     labels: [self-hosted, x64, linux, debian]

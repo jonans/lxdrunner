@@ -4,6 +4,7 @@ import os
 import os.path
 import time
 import logging
+import pathlib
 
 import pylxd
 import pylxd.exceptions
@@ -64,12 +65,11 @@ class LXDRunner:
 
         pkg = evt.pkg
 
-        installdir = "/opt/runner"
+        installdir = pathlib.Path("/opt/runner")
         pkg_src = os.path.join(cfg.pkgdir, pkg.linkname)
         pkg_dst = os.path.join(installdir, "actions-runner.tgz")
-        script = "setuprunner.sh"
-        script_dst = os.path.join(installdir, script)
-
+        script_dst = installdir.joinpath(evt.rc.setup_script.name)
+        vars_dst = installdir.joinpath("setupvars.conf")
         # Setup env vars for script
         environment = self.script_env(evt, inst.name)
 
@@ -77,7 +77,7 @@ class LXDRunner:
         # agent responds.
         for num in range(15):
             try:
-                inst.files.mk_dir(installdir)
+                inst.files.mk_dir(installdir, mode="0755")
                 log.info("Make dir: %s", installdir)
                 break
             except Exception:
@@ -89,21 +89,21 @@ class LXDRunner:
                 return
 
         # Push runner setup script to instance
-        self.pushfile(script, inst, script_dst)
+        self.pushfile(evt.rc.setup_script, inst, script_dst, mode="0755")
+        inst.files.put(vars_dst, util.env_str(environment), mode="0755")
         self.pushfile(pkg_src, inst, pkg_dst, mode="0755")
 
         # Execute runner setup script
         log.info(f"Executing: {script_dst}")
-        (exitcode, stdout, stderr) = inst.execute(
-            ["bash", script_dst],
-            environment=environment,
-        )
-        log.info("Provision sucesssful")
+        (exitcode, stdout,
+         stderr) = inst.execute([str(script_dst)], environment=environment)
         if exitcode or log.level <= logging.DEBUG:
             log.error("===STDOUT====\n%s", stdout)
             log.error("===STDERR====\n%s", stderr)
         if exitcode:
             raise Exception(f"Provisioner exit code: {exitcode}")
+
+        log.info("Provision sucesssful")
 
     def verify_launch(self, evt):
         errs = []
@@ -114,6 +114,8 @@ class LXDRunner:
         for prof in evt.rc.profiles:
             if not self.client.profiles.exists(prof):
                 errs.append(f"profile does not exist: {prof}")
+        if not evt.rc.setup_script.exists():
+            errs.append(f"script does not exist: {evt.rc.setup_script}")
         if errs:
             for err in errs:
                 log.error("Error: %s", err)
@@ -121,7 +123,11 @@ class LXDRunner:
         return True
 
     def _cleanup_instance(self, inst_name):
+        if not cfg.cleanup:
+            log.error("Runner start failed, CLEANUP DISABLED")
+            return False
         log.error("Runner start failed, destroying %s", inst_name)
+
         try:
             inst = self.client.instances.get(inst_name)
             inst.stop()

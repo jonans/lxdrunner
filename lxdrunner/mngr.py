@@ -99,10 +99,14 @@ class RunManager:
         Return list(workflow_runs) with .check_runs set to corresponding
         check_runs.
         """
+        #
         # actions.list_workflow_runs_for_repo(
         #  owner, repo, actor, branch, event, status, per_page, page)
         # checks.list_for_suite(
         #  owner, repo, check_suite_id, check_name, status, filter, per_page, page)
+        #
+        # Get queued workflows
+        # Use workflow checksuite_id to lookup check_runs
         target = dict(owner=owner, repo=repo, status='queued')
 
         wf_runs = self.ghapi.actions.list_workflow_runs_for_repo(
