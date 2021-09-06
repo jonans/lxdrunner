@@ -16,7 +16,7 @@ install-dev: install-piptools
 
 update-deps:
 	pip-compile
-	pip-compile requirements.dev.in --output-file requirements.dev.txt
+	pip-compile requirements.in requirements.dev.in --output-file requirements.dev.txt
 
 lint:
 	flake8
