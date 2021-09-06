@@ -9,21 +9,24 @@ from .mngr import RunManager
 
 def cliparse():
     parser = argparse.ArgumentParser(description='LXDRunner')
-    default = cfg.__config__.default_files
-    helptext = f"Configuration file. Default: {default}"
-    parser.add_argument('-c', dest='cfgfile', help=helptext, default=None)
-    args = parser.parse_args()
-    return args
+    parser.prog = vars(sys.modules[__name__])['__package__']
+    defcfg = cfg.__config__.default_files
+    defcfg = defcfg[0] if defcfg else "config.yml"
+    helptext = f"Configuration file. Default: {defcfg}"
+    parser.add_argument('-c', dest='cfgfile', help=helptext, default=defcfg)
+    return parser
 
 
 def main():
 
-    args = cliparse()
+    parser = cliparse()
+    args = parser.parse_args()
 
     try:
         cfg.load(args.cfgfile)
     except FileNotFoundError:
-        print(f"Config file does not exist: {args.cfgfile}")
+        print(f"\nConfig file does not exist: {args.cfgfile}\n")
+        parser.print_help()
         sys.exit(1)
 
     lxr = RunManager()

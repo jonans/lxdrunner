@@ -70,12 +70,15 @@ More complex scaling could be achieved using the GitHub API at the expense of jo
 
 ## Limitations:
 
-The goal is to map workflow runner labels to different LXD configurations. Currently only a single active configuration is supported. Its not clear how to associate check_runs to labels using the GitHub API.
+The goal is to map workflow runner labels to different LXD configurations, but currently only a single active configuration is supported. Acheiving this requires figuring out howto associate check_runs to runner labels using the GitHub API.
 
-- Workflow runs fail immediately if no runners with matching labels are registered. Remedy this by manually registering a runner with matching labels that is permanently left in the offline state.
+- Workflow runs fail immediately if no runners with matching labels are registered. Remedy this by manually registering a runner with matching labels that is permanently left in the offline state. In this case runs will be queued.
 - Only local access via unix socket. Must run on same server as LXD.
-- Only local images supported. Copy your remote images with auto update enabled.
+- Only local images supported. Copy your remote images locally with auto update enabled. You end up with faster boot times and up to date images.
 - Runner provisioning is based on bash script. Probably doesn't work on anything other than Ubuntu/Debian based distros without modification.
+- This software relies on the github runner "--once" flag which terminates the runner after processing a single job. There is a bug: https://github.com/actions/runner/issues/510 where the runner will sometimes accept another job before shutting down, so you may end up running tests in an unclean environment.
+
+  Attempts to reproduce the bug by running a few hundred sequential jobs have been unsuccesful. This doesn't mean it doesn't exist, just that I haven't run into it yet. Atleast for my purposes it appears uncommon and good enough. Long term the GitHub indicates they are working to fit it.
 
 ## TODO:
 

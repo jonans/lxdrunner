@@ -4,6 +4,6 @@ pylxd
 ghapi
 Flask
 pydantic
-goodconf[yaml]>=2.0*
+goodconf[yaml]>=2.0.*
 schedule
 
