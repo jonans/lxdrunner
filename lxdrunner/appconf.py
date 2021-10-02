@@ -14,7 +14,7 @@ class RunnerConf(BaseModel):
     name: str
     labels: frozenset
     image: str
-    profiles: list
+    profiles: typing.List[str] = ['default']
     runner_os: typing.Literal['linux', 'win', 'osx']
     runner_arch: typing.Literal['x64', 'arm', 'arm64']
     type: typing.Literal['container', 'virtual-machine']
@@ -36,7 +36,8 @@ class AppConfig(GoodConf):
     prefix: str
     setupscript: str
     runnermap: typing.List[RunnerConf]
-    activecfg: frozenset
+    # For testing
+    activecfg: typing.FrozenSet[str] = frozenset()
     rundelay: int
     max_workers: int
     # Testing

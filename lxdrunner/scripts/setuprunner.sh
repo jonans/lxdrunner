@@ -67,14 +67,14 @@ background(){
 }
 
 start_runner(){
-  sudo -u $RUNNERUSER ./run.sh --once
-  sudo -u $RUNNERUSER ./config.sh remove --unattended --token "$GHA_TOKEN"
+  sudo -u $RUNNERUSER ./run.sh
+  # sudo -u $RUNNERUSER ./config.sh remove --unattended --token "$GHA_TOKEN"
   delaypoweroff
 }
 
 reg_runner(){
   sudo -u $RUNNERUSER ./config.sh --unattended --url "$GHA_URL" --token "$GHA_TOKEN" \
-     --replace --name "$GHA_NAME" --labels "$GHA_EXTRA_LABELS"
+     --replace --name "$GHA_NAME" --labels "$GHA_EXTRA_LABELS" --ephemeral
 }
 
 begin_runner(){

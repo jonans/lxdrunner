@@ -34,12 +34,9 @@ class RunManager:
         self.lxd = lxd.LXDRunner(connect=False)
         self.schedq = sched.scheduler()
         self.evtq = queue.PriorityQueue()
-
-        # Map set of labels to a specific LXD configuration. Currently limited
-        # to single config until check_runs to label association is figured out.
         self.runnermap = {item.labels: item for item in cfg.runnermap}
-        # Temporary fixed config
-        self.activecfg = self.runnermap[cfg.activecfg]
+        # For testing
+        # self.activecfg = cfg.activecfg
 
         # Cache for various github resources
         self.reg_tokens = {}
@@ -103,7 +100,8 @@ class RunManager:
         # actions.list_workflow_runs_for_repo(
         #  owner, repo, actor, branch, event, status, per_page, page)
         # checks.list_for_suite(
-        #  owner, repo, check_suite_id, check_name, status, filter, per_page, page)
+        #  owner, repo, check_suite_id, check_name, status, filter, per_page,
+        #   page)
         #
         # Get queued workflows
         # Use workflow checksuite_id to lookup check_runs
@@ -237,9 +235,13 @@ class RunManager:
             ghargs['runner_id'] = run.id
             if ghargs.get("org"):
                 log.info(
-                    "Remove offline runner {org} {runner_id}".format(**ghargs)
+                    "Remove offline runner {org} {runner_id}".format(
+                        **ghargs
+                    )
                 )
-                self.ghapi.actions.delete_self_hosted_runner_from_org(**ghargs)
+                self.ghapi.actions.delete_self_hosted_runner_from_org(
+                    **ghargs
+                )
             else:
                 log.info(
                     "Remove offline runner {owner}/{repo} {runner_id}".format(
@@ -274,12 +276,15 @@ class RunManager:
     def queue_evt(self, evt):
         " Queue GH webhook event "
 
-        # Temporary. Attach fixed runnercfg to every event.
-        evt['rc'] = self.activecfg
+        if not frozenset(evt['labels']) in self.runnermap:
+            log.warn(f"No matching config for labels {evt['labels']}")
+            return
+        evt['rc'] = self.runnermap.get(frozenset(evt['labels']))
+
         evt = dtypes.RunnerEvent(**evt)
         self.evtq.put((time.time(), evt))
         log.info(
-            f"Queueing: check_run id={evt.check_run_id} {evt.owner}/{evt.repo}"
+            f"Queueing: job run id={evt.check_run_id} {evt.owner}/{evt.repo}"
         )
 
     def process_evt(self, evt: dtypes.RunnerEvent):

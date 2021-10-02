@@ -49,19 +49,21 @@ def githubhook():
 
     # Event should be check_run, app == actions and status == queued
     if (
-        ghevt != "check_run" or data.get("check_run").get("status") != "queued"
-        or data.get("check_run").get("app").get("slug") != "github-actions"
+        ghevt != "workflow_job"
+        or data.get("workflow_job").get("status") != "queued"
     ):
 
-        log.info(f"Skipping event: {ghevt}")
+        log.info(f"Skipping event: {ghevt} , action={data['action']}")
         return "Skipping Event"
 
     gh = dict(
-        check_run_id=data.get("check_run", {}).get("id"),
+        check_run_id=data.get("workflow_job", {}).get("id"),
         repo=data.get("repository", {}).get("name"),
         owner=data.get("repository", {}).get("owner", {}).get("login"),
         org=data.get("organization", {}).get("login"),
+        labels=data.get("workflow_job", {}).get("labels")
     )
+    log.info(f"Accepted event: {ghevt} , action={data['action']}")
     app.queue_evt(gh)
     return "OK"
 

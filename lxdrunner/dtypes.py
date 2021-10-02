@@ -4,7 +4,7 @@ import typing
 
 from pydantic import BaseModel, validator
 
-from .appconf import config as cfg, RunnerConf
+from .appconf import RunnerConf
 
 
 def maketarget(ghargs):

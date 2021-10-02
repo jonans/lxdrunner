@@ -29,15 +29,28 @@ web_tls: True
 
 runnermap:
 
+  # name:         required
+  # labels:       required
+  # image:        required
+  # type:         required ( container, virtual-machine )
+  # runner_os:    required ( linux, win, osx )
+  # runner_arch:  required ( x64, arm, arm64 )
+  # profiles:     default = default
+  # setup_script: default = internal script in lxdrunner/scripts/setuprunner.sh
+
   - name: Ubuntu Container Runner
-    labels: [self-hosted, x64, linux]
+    labels: [ self-hosted ]
     image: ubuntu/focal/cloud
-    profiles: [ default ]
     type: container
     runner_arch: x64
     runner_os: linux
-    # Override setup script
-    #setup_script: 
+
+  - name: Ubuntu Virtual Machine Runner
+    labels: [self-hosted, x64, linux, vm]
+    image: ubuntu/focal/cloud/vm
+    type: virtual-machine
+    runner_arch: x64
+    runner_os: linux
 
   - name: Debian 10 Container Runner
     labels: [self-hosted, x64, linux, debian]
@@ -46,17 +59,5 @@ runnermap:
     type: container
     runner_arch: x64
     runner_os: linux
-
-  - name: Ubuntu Virtual Machine Runner
-    labels: [self-hosted, x64, linux, vm]
-    image: ubuntu/focal/cloud/vm
-    profiles: [ default ]
-    type: virtual-machine
-    runner_arch: x64
-    runner_os: linux
-
-# Which of the above settings to use:
-
-activecfg: [self-hosted, x64, linux]
 
 rundelay: 10
