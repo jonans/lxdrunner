@@ -3,7 +3,7 @@
 .PHONY: install-piptools install-deps install-dev update-deps tests install-user-unit setup-install pip-install
 
 upgrade-pip:
-	python -m pip install --upgrade pip
+	python3 -m pip install --upgrade pip
 
 install-piptools:
 	pip3 install pip-tools toml
