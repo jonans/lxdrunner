@@ -45,8 +45,8 @@ jobs:
 
       - name: Setup LXD
         run: |
-          sudo snap install lxd
-          sudo lxd init --auto
+          sudo -s /usr/bin/snap install lxd
+          sudo -s /snap/bin/lxd init --auto
 
       - name: Build LXD image
         run: ./scripts/build-image.sh
