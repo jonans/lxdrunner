@@ -42,6 +42,7 @@ setup_user(){
     [ "$?" -eq "0" ] || fail "Add user failed"
     adduser runner sudo
     [ "$?" -eq "0" ] || fail "Add group failed"
+    echo "runner ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/runner
 }
 
 # Package handling
