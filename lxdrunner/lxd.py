@@ -5,13 +5,19 @@ import os.path
 import time
 import logging
 import pathlib
-
+from collections import deque
 import pylxd
 import pylxd.exceptions
+import urllib3
+import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 from .applog import log
 from .appconf import config as cfg
 from . import util
+
+urllib3.disable_warnings()
 
 
 class LXDRunner:
@@ -20,8 +26,22 @@ class LXDRunner:
         if connect:
             self.connect()
 
+        self.workers = dict()
+        self.pool = ThreadPoolExecutor(cfg.max_workers)
+
+    @staticmethod
+    def get_client(remote, verify=False):
+        cert = None
+        remote = cfg.remotes.get("main")
+        if remote.addr and remote.addr.startswith("https://"):
+            cert = cfg.key_pair_paths()
+
+        log.info(f"Connecting to LXD: {remote.addr or 'local unix-socket'}")
+        return pylxd.Client(endpoint=remote.addr, cert=cert, verify=verify)
+
     def connect(self):
-        self.client = pylxd.Client()
+        remote = cfg.remotes.get('main')
+        self.client = LXDRunner.get_client(remote)
 
     def pushfile(self, src, instance, dst, **exargs):
         " Push file into instance "
@@ -35,6 +55,12 @@ class LXDRunner:
             wrkr for wrkr in self.client.instances.all()
             if util.has_prefix(wrkr.name)
         ]
+
+    def worker_count(self):
+        return len(self.workers)
+
+    def status(self):
+        return f"{ len(self.workers) } workers"
 
     def script_env(self, evt, instname: str):
         "Setup environment variables for runner script"
@@ -53,7 +79,7 @@ class LXDRunner:
             name=inst_name,
             ephemeral=True,
             profiles=rc.profiles,
-            source=dict(type="image", alias=rc.image),
+            source=util.image_to_source(rc.image),
             type=rc.type
         )
         log.warning("Launching instance %s", inst_name)
@@ -66,7 +92,7 @@ class LXDRunner:
         pkg = evt.pkg
 
         installdir = pathlib.Path("/opt/runner")
-        pkg_src = os.path.join(cfg.pkgdir, pkg.linkname)
+        pkg_src = os.path.join(str(cfg.dirs.pkgdir), pkg.linkname)
         pkg_dst = os.path.join(installdir, "actions-runner.tgz")
         script_dst = installdir.joinpath(evt.rc.setup_script.name)
         vars_dst = installdir.joinpath("setupvars.conf")
@@ -108,7 +134,8 @@ class LXDRunner:
     def verify_launch(self, evt):
         errs = []
         try:
-            self.client.images.get_by_alias(evt.rc.image)
+            if ":" not in evt.rc.image:
+                self.client.images.get_by_alias(evt.rc.image)
         except pylxd.exceptions.NotFound:
             errs.append(f"image does not exist: {evt.rc.image}")
         for prof in evt.rc.profiles:
@@ -136,38 +163,82 @@ class LXDRunner:
             return False
         return True
 
-    def _thread_launch(self, evt):
-        " Launch GHA Runner in thread"
-
-        # FIX ME ! PyLXD is probably not thread safe "
-
-        def run(evt):
-            lxd = LXDRunner()
-            lxd._launch(evt)
-
-        log.info(f"Thread start {evt.check_run_id}")
-        util.threadit(run, args=(evt, ))
-
     def _launch(self, evt):
         " Launch GHA Runner, main method "
-        instname = util.make_name()
 
+        if "ThreadPool" in threading.current_thread().name:
+            threading.current_thread().setName(evt.instname)
+
+        self.workers[evt.instname] = evt
         if not self.verify_launch(evt):
             return False
         # Any error here needs instance cleanup
+        noerror = True
         try:
-            inst = self.launch_instance(instname, evt.rc)
+            inst = self.launch_instance(evt.instname, evt.rc)
             self.start_gha_runner(inst, evt)
         except Exception as exc:
             log.exception(exc)
-            self._cleanup_instance(instname)
-            return False
-        return True
+            self._cleanup_instance(evt.instname)
+            noerror = False
+
+        return noerror
 
     def launch(self, evt, wait=False):
         " Launch GHA Runner "
-        # FIX ME ! PyLXD is probably not thread safe "
+
+        def handle_done(futr):
+            err = futr.exception()
+            if not err:
+                return
+            raise err
+
         if not wait:
-            self._thread_launch(evt)
+            self.pool.submit(self._launch, evt).add_done_callback(handle_done)
         else:
             self._launch(evt)
+
+    def start_tasks(self):
+        util.threadit(self.watch_lxd_events, name='LXD-Events')
+
+    def watch_lxd_events(self):
+
+        client = LXDRunner.get_client(cfg.remotes.get('main'))
+
+        ## Work around for bug in pylxd 2.3.0 : WSS not using certs
+        ssl_options = {}
+        if client.api.scheme == 'https':
+            ssl_options.update(
+                {
+                    "certfile": client.cert[0],
+                    "keyfile": client.cert[1]
+                }
+            )
+
+        class FixedWSClient(pylxd.client._WebsocketClient):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs, ssl_options=ssl_options)
+
+        def process_message(message):
+            if message.is_text:
+                message = json.loads(message.data)
+            if message["metadata"]["action"] == "instance-deleted":
+                instname = message["metadata"]["source"].split("/")[-1]
+                if not util.has_prefix(instname):
+                    return
+                try:
+                    job = self.workers.pop(instname, None)
+                    log.info(f"Removing {instname} {self.status()}")
+                    if job:
+                        job.rc.worksem.release()
+                except ValueError:
+                    log.error("Semaphore release fail", instname)
+            pass
+
+        evfilter = set([pylxd.EventType.Lifecycle])
+        ws_client = client.events(
+            event_types=evfilter, websocket_client=FixedWSClient
+        )
+        ws_client.received_message = process_message
+        ws_client.connect()
+        ws_client.run()

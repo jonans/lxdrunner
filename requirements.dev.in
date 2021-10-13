@@ -4,4 +4,4 @@ pytest
 build
 mypy
 flake8
-
+pip-tools

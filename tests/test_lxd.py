@@ -77,7 +77,7 @@ def test_launch_instance(lxdm):
         name=instname,
         ephemeral=True,
         profiles=goodrc.profiles,
-        source=dict(type="image", alias=goodrc.image),
+        source=dict(type="image", alias=goodrc.image, mode="pull"),
         type=goodrc.type
     )
     lxdm.launch_instance(instname, goodrc)

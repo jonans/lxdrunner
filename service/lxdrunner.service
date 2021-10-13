@@ -1,0 +1,16 @@
+[Unit]
+Description=LXDRunner
+
+[Service]
+ExecStart=%h/.local/bin/lxdrunner
+Restart=on-failure
+RestartSec=10
+
+# Hardening
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
+

@@ -13,11 +13,10 @@ Why use LXD and self-hosted runners ?
 
 ## Setup:
 
-LXDRunner works both with user repos and organizations. The service must be accessible over the internet in order to receive webhooks from GitHub. The API endpoint is protected by a secret and TLS. If you want to restrict access by IP you can retrieve a list of GitHub IPs using the [Meta API](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses)
+LXDRunner works both with repo and organization runners. The service must be accessible over the internet in order to receive webhooks from GitHub. The API endpoint is protected by a secret and TLS. If you want to restrict access by IP you can retrieve a list of GitHub IPs using the [Meta API](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses)
 
 
 ### GitHub Setup
-
 
 - Setup a PAT with access to the repos and orgs you want serviced. Copy this down you will need it.
 
@@ -52,10 +51,10 @@ Repeat these steps once for each organization and/or user repo you want serviced
 
 Requirements: Python 3.8 with pip
 
-- Clone this repo. Setup virtual env if needed.
+- Clone this repo. Setup python virtual env if needed.
 - Install requirements: `pip install -r requirements.txt`
 - Create configuration as detailed below.
-- Start LXDRunner server : `python -m lxdrunner`
+- Run LXDRunner from directory : `python -m lxdrunner`
 - You can install `lxdrunner` to default locations with: `pip install ./`
 
 ### LXDRunner Configuration
@@ -64,16 +63,16 @@ Requirements: Python 3.8 with pip
 - Edit config.yml:
     - Set your GitHub PAT
     - Set your webhook secret
+    - Setup remotes
     - Setup the runnermap. This section maps a set of actions workflow labels to specific LXD settings
-      such as name, image, profiles, container type, etc.
-- Copy needed LXD images locally, remotes are not yet supported.
+      such as name, image source, profiles, container type, etc.
 - Run some github actions workflows to test.
 
 ## How it works
 
-LXDRunner runs an API endpoint waiting on webhook events from GitHub. No LXD instances are running until needed so resource usage is minimal. Every time Actions runs a workflow an event is sent for each job. LXDRunner reacts to each workflow_job event in queued status by:
+LXDRunner runs an API endpoint waiting on webhook events from GitHub. No LXD instances are running until needed so resource usage is minimal. Every time Actions runs a workflow and event is sent for each job. LXDRunner reacts to each [workflow_job](https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#workflow_job) event in queued status by:
 
-- Launching a pristine LXD instance based on matching labels in your config (image, profiles, type, etc)
+- Launching a pristine LXD instance based on matching labels in your runnermap config (image, profiles, type, etc)
 - Provisioning instance with the latest GHA runner client to complete the job.
 - GHA runner automatically shuts down and deregisters when job is complete.
 - Destroying the LXD instance, just like GitHub hosted runners.
@@ -85,19 +84,21 @@ Instances are ephemeral, automatically deregistered and shutdown on completion.
 
 More complex scaling could be achieved using the GitHub API at the expense of job latency, higher API and resource usage.
 
+After release of the ephemeral feature this is now the recommended scaling strategy. https://docs.github.com/en/actions/hosting-your-own-runners/autoscaling-with-self-hosted-runners
+
 ### Limitations:
 
 - Workflow runs fail immediately if no runners with matching labels are registered. Remedy this by manually registering a runner with matching labels that is permanently left in the offline state. In this case runs will be queued.
-- Only local access via unix socket. Must run on same server as LXD.
-- Only local images supported. Copy your remote images locally with auto update enabled. You end up with faster boot times and up to date images.
 - Runner provisioning is based on bash script. Probably doesn't work on anything other than Ubuntu/Debian based distros without modification.
 
 # Development
 
 ## TODO:
 
-- Remote image and LXD server support
-- Investigate race condition between cloudinit and setupscript adduser
+- Investigate race condition between cloudinit and setup script adduser
+- Fix TLS verification
+- Limit workers per label-set
+- Dedup queue
 - Don't think pyLXD is thread-safe, investigate.
 - Explore alt provisioning methods ( prebaked images, disks mounts, etc )
 - Auto configuration of webhooks through API
@@ -106,8 +107,9 @@ More complex scaling could be achieved using the GitHub API at the expense of jo
 - More tests
 
 ## DONE:
+- Remote LXD server and image support
 - Add support for multiple label maps
-- Make changes for emphemeral fix. actions/runner issue 510
+- Make changes for ephemeral fix. actions/runner issue 510
 - During startup and periodically:
   - query GH for queued runs that might have been missed or lost.
   - cleanup offline runner registrations and expired LXD workers

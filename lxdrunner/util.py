@@ -38,3 +38,18 @@ def env_str(data):
     for key, val in data.items():
         sdata += f"{key}={val}\n"
     return sdata
+
+
+def image_to_source(image):
+    " Convert image resource [<remote>:]<image>  to source object "
+    alias = image
+    source = dict(type="image", mode="pull")
+
+    if ":" in image:
+        remote_name, alias = image.split(":")
+        remote = cfg.remotes.get(remote_name)
+        source['protocol'] = remote.protocol
+        source['server'] = remote.addr
+
+    source['alias'] = alias
+    return source

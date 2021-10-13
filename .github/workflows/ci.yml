@@ -28,7 +28,7 @@ jobs:
       - name: Setup virtualenv
         run: python -m venv venv
 
-      - name: Install dev deps
+      - name: Development Install
         run: |
           . ./venv/bin/activate
           make install-dev
@@ -37,6 +37,7 @@ jobs:
         run: |
           . ./venv/bin/activate
           make tests
+
       - name: Build wheel package
         run: |
           . ./venv/bin/activate

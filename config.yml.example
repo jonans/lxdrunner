@@ -3,24 +3,32 @@
 pat: "fake_github_pat"
 hooksecret: "fake_webhook_secret"
 
-# LXD Configuration
-
-socket: /var/snap/lxd/common/lxd/unix.socket
-
 # LXD Runner Configuration
-#
-# Path for runner files cache directory
-pkgdir: pkgcache
-# Path for runner provisioning script
-setupscript: setuprunner.sh
+
 # Prefix used for naming resources ( GH runner names, LXD instances, etc )
 prefix: lxdrunner
-# Maximum number of runners that can run simultaenously
+# Maximum number of concurrent workers
 max_workers: 10
 
 web_host: 0.0.0.0
 web_port: 5000
 web_tls: True
+
+# Remotes for LXD servers.
+#
+# addr: should be https://<hostname>:<port> or unix socket path.
+# main should be primary LXD server to connect with. Default: local unix socket.
+
+remotes:
+  main:
+    addr: 
+    protocol: lxd
+  images:
+    addr: https://images.linuxcontainers.org
+    protocol: simplestreams
+  ubuntu:
+    addr: https://cloud-images.ubuntu.com/releases
+    protocol: simplestreams
 
 # The config below maps a set of runner labels to specific LXD
 # settings (image, profile, and type). Currently this is limited
@@ -60,4 +68,3 @@ runnermap:
     runner_arch: x64
     runner_os: linux
 
-rundelay: 10

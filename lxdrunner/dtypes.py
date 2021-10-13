@@ -2,9 +2,10 @@
 
 import typing
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field, validator
 
 from .appconf import RunnerConf
+from . import util
 
 
 def maketarget(ghargs):
@@ -32,6 +33,7 @@ class RunnerEvent(BaseModel):
     pkg: typing.Any
     token: str = ""
     check_run_id: str = ""
+    instname: str = Field(default_factory=util.make_name)
 
     @validator('target', always=True)
     def compute_target(cls, v, values, field, **kwargs):

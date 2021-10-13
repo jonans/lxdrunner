@@ -29,8 +29,9 @@ def main():
         parser.print_help()
         sys.exit(1)
 
+    RunManager.configure()
+
     lxr = RunManager()
-    lxr.lxd.connect()
     lxr.startup_init()
 
     lxr.start_web_task()

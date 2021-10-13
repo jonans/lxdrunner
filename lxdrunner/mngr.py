@@ -8,6 +8,8 @@ import datetime
 import queue
 import sched
 import tempfile
+import types
+import threading
 
 from ghapi.all import GhApi
 import fastcore.net
@@ -20,7 +22,7 @@ from . import web
 from . import lxd
 from . import util
 from . import dtypes
-
+from . import tls
 #
 # Classes
 #
@@ -35,6 +37,7 @@ class RunManager:
         self.schedq = sched.scheduler()
         self.evtq = queue.PriorityQueue()
         self.runnermap = {item.labels: item for item in cfg.runnermap}
+        self.queues = {item.labels: queue.Queue() for item in cfg.runnermap}
         # For testing
         # self.activecfg = cfg.activecfg
 
@@ -44,7 +47,12 @@ class RunManager:
         self.repos = []
         self.pkgs = []
 
-        return
+    @staticmethod
+    def configure():
+        for path in cfg.app_paths():
+            path.mkdir(exist_ok=True, parents=True)
+        tls.gen_key_pair()
+        tls.confirm_certs()
 
     def get_repos(self):
         " Get and cache Github repos for user "
@@ -66,20 +74,20 @@ class RunManager:
 
         return apifunc(**ghargs)
 
-    def get_token(self, ghargs):
-        " Request or return token from cache "
+    def get_reg_token(self, ghargs):
+        " Request or return registration token from cache "
 
         tkey = ghargs.get('target')
-        token = self.reg_tokens.get(tkey)
+        reg_token = self.reg_tokens.get(tkey)
 
-        def valid_mins(token):
+        def valid_mins(reg_token):
             td = (
-                datetime.datetime.fromisoformat(token.expires_at) -
+                datetime.datetime.fromisoformat(reg_token.expires_at) -
                 datetime.datetime.now().astimezone()
             )
             return td.total_seconds() / 60
 
-        if not token or valid_mins(token) <= 30:
+        if not reg_token or valid_mins(reg_token) <= 30:
             if ghargs.get("org"):
                 log.info("Getting GHA token org: %s", tkey)
                 apifunc = self.ghapi.actions.create_registration_token_for_org
@@ -87,24 +95,19 @@ class RunManager:
                 log.info("Getting GHA token repo: %s", tkey)
                 apifunc = self.ghapi.actions.create_registration_token_for_repo
 
-            self.reg_tokens[tkey] = token = apifunc(**ghargs)
+            self.reg_tokens[tkey] = reg_token = apifunc(**ghargs)
 
-        return token
+        return reg_token
 
     def get_queued_runs_for_repo(self, owner, repo, **kwargs):
-        """ Get queued workflow with check runs for given repo
-        Return list(workflow_runs) with .check_runs set to corresponding
-        check_runs.
+        """ Get queued workflow runs for given repo
+        Return list(workflow_runs) with .jobs set to corresponding
+        jobs
         """
         #
         # actions.list_workflow_runs_for_repo(
         #  owner, repo, actor, branch, event, status, per_page, page)
-        # checks.list_for_suite(
-        #  owner, repo, check_suite_id, check_name, status, filter, per_page,
-        #   page)
         #
-        # Get queued workflows
-        # Use workflow checksuite_id to lookup check_runs
         target = dict(owner=owner, repo=repo, status='queued')
 
         wf_runs = self.ghapi.actions.list_workflow_runs_for_repo(
@@ -112,13 +115,13 @@ class RunManager:
         ).workflow_runs
 
         for run in wf_runs:
-            run.check_runs = self.ghapi.checks.list_for_suite(
-                **target, check_suite_id=run.check_suite_id
-            ).check_runs
+            run.jobs = self.ghapi.actions.list_jobs_for_workflow_run(
+                **target, run_id=run.id
+            ).jobs
         return wf_runs
 
     def get_queued_runs(self):
-        " Get queued workflow with check runs from all repos "
+        " Get queued workflow jobs from all repos "
         self.get_repos()
 
         runs = []
@@ -130,16 +133,17 @@ class RunManager:
         events = []
         wfruns = self.get_queued_runs()
         for wfrun in wfruns:
-            for ckrun in wfrun.check_runs:
+            for job in wfrun.jobs:
                 org = ''
                 if wfrun.repository.owner.type == 'Organization':
                     org = wfrun.repository.owner.login
                 events.append(
                     dict(
-                        check_run_id=ckrun.id,
+                        check_run_id=job.id,
                         repo=wfrun.repository.name,
                         owner=wfrun.repository.owner.login,
-                        org=org
+                        org=org,
+                        labels=job.labels
                     )
                 )
         log.warning("Submitted %s pending run events", len(events))
@@ -185,15 +189,15 @@ class RunManager:
 
         self.get_packages()
 
-        if not os.path.exists(cfg.pkgdir):
-            os.makedirs(cfg.pkgdir)
+        if not cfg.dirs.pkgdir.exists():
+            cfg.dirs.pkgdir.mkdir(exist_ok=True, parents=True)
 
         pkgfiles = set()
 
         for pkg in self.pkgs:
             pkgfiles.update((pkg.filename, pkg.linkname))
-            filepath = os.path.join(cfg.pkgdir, pkg.filename)
-            linkpath = os.path.join(cfg.pkgdir, pkg.linkname)
+            filepath = os.path.join(cfg.dirs.pkgdir, pkg.filename)
+            linkpath = os.path.join(cfg.dirs.pkgdir, pkg.linkname)
 
             if not os.path.exists(filepath):
                 log.info("Downloading: " + pkg.filename)
@@ -204,18 +208,18 @@ class RunManager:
             # during launch event.
 
             # Create temp name for symlink
-            temp_linkpath = tempfile.mktemp(dir=cfg.pkgdir)
+            temp_linkpath = tempfile.mktemp(dir=cfg.dirs.pkgdir)
             # Symlink to pkg.filename
             os.symlink(pkg.filename, temp_linkpath)
             # Atomic replace existing symlink
             os.replace(temp_linkpath, linkpath)
 
-        dirfiles = set(os.listdir(cfg.pkgdir))
+        dirfiles = set(os.listdir(cfg.dirs.pkgdir))
         delfiles = dirfiles - pkgfiles
 
         for fname in delfiles:
             log.info(f"Deleting : {fname}")
-            os.unlink(os.path.join(cfg.pkgdir, fname))
+            os.unlink(os.path.join(cfg.dirs.pkgdir, fname))
 
     def cleanup_runners(self, ghargs):
         " Delete offline runners for given org or repo "
@@ -275,14 +279,15 @@ class RunManager:
 
     def queue_evt(self, evt):
         " Queue GH webhook event "
+        labels = frozenset(evt['labels'])
 
-        if not frozenset(evt['labels']) in self.runnermap:
-            log.warn(f"No matching config for labels {evt['labels']}")
+        if not labels in self.runnermap:
+            log.warn(f"No matching config for labels {labels}")
             return
-        evt['rc'] = self.runnermap.get(frozenset(evt['labels']))
+        evt['rc'] = self.runnermap.get(labels)
 
         evt = dtypes.RunnerEvent(**evt)
-        self.evtq.put((time.time(), evt))
+        self.queues[labels].put((time.time(), evt))
         log.info(
             f"Queueing: job run id={evt.check_run_id} {evt.owner}/{evt.repo}"
         )
@@ -293,7 +298,7 @@ class RunManager:
             f"Processing: check_run id={evt.check_run_id} {evt.owner}/{evt.repo}"
         )
 
-        evt.token = self.get_token(evt.dict()).token
+        evt.token = self.get_reg_token(evt.dict()).token
         evt.pkg = self.get_runner_pkg(evt.rc)
 
         self.lxd.launch(evt)
@@ -301,14 +306,20 @@ class RunManager:
     def runqueue(self):
         " Process event queue "
         while True:
-            while len(self.lxd.get_workers()) >= cfg.max_workers:
-                time.sleep(1)
-            try:
-                (ts, evt) = self.evtq.get()
-                self.process_evt(evt)
-            except Exception as e:
-                log.error("Error processing queue")
-                log.exception(e)
+            for labels, evtq in self.queues.items():
+                while not evtq.empty(
+                ) and self.runnermap[labels].worksem.acquire():
+                    print(f"Processing Queue {labels}")
+                    try:
+                        (ts, evt) = evtq.get()
+                        self.process_evt(evt)
+                    except queue.Empty as e:
+                        print("EMPTY Q")
+                        break
+                    except Exception as e:
+                        log.error("Error processing queue")
+                        log.exception(e)
+            time.sleep(1)
 
     def start_queue_task(self):
         " Start queue runner task "
@@ -334,6 +345,8 @@ class RunManager:
         " Startup initilization "
 
         self.lxd.connect()
+        self.lxd.start_tasks()
+
         self.update_pkg_cache()
         self.cleanup()
         self.submit_pending_runs()

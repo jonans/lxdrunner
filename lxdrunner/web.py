@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import hmac
+import logging
 
 from flask import Flask
 from flask import request
@@ -29,8 +30,8 @@ def validate_webhook():
     result = hmac.compare_digest(mac, sig)
     if not result:
         log.warning(failmsg)
-        log.info(f"- HMAC: { mac }")
-        log.info(f"- GHSIG: { sig }")
+        log.debug(f"- HMAC: { mac }")
+        log.debug(f"- GHSIG: { sig }")
     return result
 
 
@@ -39,7 +40,7 @@ def githubhook():
     ghevt = request.headers.get("X-GitHub-Event")
 
     if not ghevt:
-        log.warning("Not a Github webhook event")
+        log.debug("Not a Github webhook event")
         return "UNAUTHORIZED", 401
 
     if not validate_webhook():
@@ -47,21 +48,22 @@ def githubhook():
 
     data = request.json
 
-    # Event should be check_run, app == actions and status == queued
+    job = data.get("workflow_job", {})
+    # Event should be workflow_job, status == queued, self-hosted
     if (
-        ghevt != "workflow_job"
-        or data.get("workflow_job").get("status") != "queued"
+        ghevt != "workflow_job" or job.get("status") != "queued"
+        or "self-hosted" not in job.get("labels")
     ):
 
-        log.info(f"Skipping event: {ghevt} , action={data['action']}")
+        log.debug(f"Skipping event: {ghevt} , action={data['action']}")
         return "Skipping Event"
 
     gh = dict(
-        check_run_id=data.get("workflow_job", {}).get("id"),
+        check_run_id=job.get("id"),
         repo=data.get("repository", {}).get("name"),
         owner=data.get("repository", {}).get("owner", {}).get("login"),
         org=data.get("organization", {}).get("login"),
-        labels=data.get("workflow_job", {}).get("labels")
+        labels=job.get("labels")
     )
     log.info(f"Accepted event: {ghevt} , action={data['action']}")
     app.queue_evt(gh)
@@ -70,5 +72,6 @@ def githubhook():
 
 def startserver(queue_evt):
     app.queue_evt = queue_evt
+    #app.logger.setLevel(logging.WARN)
     tls = 'adhoc' if cfg.web_tls else None
     app.run(host=str(cfg.web_host), port=cfg.web_port, ssl_context=tls)
