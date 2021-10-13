@@ -28,7 +28,7 @@ jobs:
       - name: Setup base environment
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y python3-pip
+          sudo apt-get install -y python3-pip python3-venv
 
       - name: Setup virtualenv
         run: python3 -m venv venv
