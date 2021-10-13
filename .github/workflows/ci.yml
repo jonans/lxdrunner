@@ -28,7 +28,7 @@ jobs:
       - name: Setup base environment
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y python3-pip python3-venv
+          sudo apt-get install -y python3-pip python3-venv python3-wheel
 
       - name: Setup virtualenv
         run: python3 -m venv venv
@@ -43,7 +43,9 @@ jobs:
           . ./venv/bin/activate
           make tests
 
-      - name: Build wheel package
-        run: |
-          . ./venv/bin/activate
-          python3 -m build
+      - name: Setup LXD
+        run: sudo ./scripts/setup-lxd.sh
+
+      - name: Build LXD image
+        run: ./scripts/build-image.sh
+

@@ -23,7 +23,8 @@ tar -c ../lxdrunner | lxc exec $CONTNAME --user $MY_UID --group $MY_UID -- tar -
 
 lxc exec $CONTNAME --user $MY_UID --group $MY_UID -- sh <<-END
  cd ~$USER/lxdrunner
- make pip-install
+ make install
  make install-user-unit
 END
+
 
