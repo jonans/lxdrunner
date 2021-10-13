@@ -22,7 +22,7 @@ install:
 	pip3 install ./
 
 install-dev:
-	pip3 install --user -e ".[dev]"
+	pip3 install -e ".[dev]"
 
 lint:
 	flake8
