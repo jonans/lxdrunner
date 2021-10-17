@@ -4,12 +4,42 @@ Experimental daemon using [LXD](https://linuxcontainers.org/lxd/introduction/#LX
 
 Why use LXD and self-hosted runners ?
 
-- Trivial to use containers and VMs with the same system and API.
+- Trivial to switch between containers and VMs..
 - High density and fast startup when running containers.
 - Create your own OS images and get a pristine environment every time.
 - Automatic download and provisioning of the latest GHA runner client.
-- Access custom hardware: Serial, usb, and PCI attached devices such as phones, GPUs, etc.
+- Access custom hardware: Serial, USB, and PCI attached devices such as phones, GPUs, etc.
 - Access sensitive resources that must be handled locally.
+
+## How it works
+
+LXDRunner runs an API endpoint waiting on webhook events from GitHub. No LXD instances are running until needed so resource usage is minimal. Every time Actions runs a workflow an event is sent for each job. LXDRunner reacts to each [workflow_job](https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#workflow_job) event in queued status by:
+
+- Mapping workflow labels to a specific LXD config ( image, profile, container type, etc ) 
+- Launching a pristine LXD instance based on matching config.
+- Provisioning instance with the latest GHA runner client to complete the job.
+- GHA runner automatically shuts down and deregisters when job is complete.
+- Destroying the LXD instance, just like GitHub hosted runners.
+
+### Periodic Events
+
+- Every 24 hours: Checks for new version of actions runner
+- Every 12 hours: Cleanup any offline runner registrations
+
+### Scaling
+KISS, based only on incoming webhooks from GitHub.  For each event 1 runner is launched on the fly.
+
+Instances are ephemeral, automatically deregistered and shutdown on completion.
+
+More complex scaling could be achieved using the GitHub API at the expense of job latency, higher API and resource usage.
+
+After release of the ephemeral feature this is now the recommended scaling strategy. https://docs.github.com/en/actions/hosting-your-own-runners/autoscaling-with-self-hosted-runners
+
+### Limitations:
+
+- Workflow runs fail immediately if no runners with matching labels are registered. Remedy this by manually registering a runner with matching labels that is permanently left in the offline state. In this case runs will be queued.
+- Runner provisioning is based on bash script. Probably doesn't work on anything other than Ubuntu/Debian based distros without modification.
+
 
 ## Setup:
 
@@ -68,38 +98,14 @@ Requirements: Python 3.8 with pip
       such as name, image source, profiles, container type, etc.
 - Run some github actions workflows to test.
 
-## How it works
-
-LXDRunner runs an API endpoint waiting on webhook events from GitHub. No LXD instances are running until needed so resource usage is minimal. Every time Actions runs a workflow and event is sent for each job. LXDRunner reacts to each [workflow_job](https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#workflow_job) event in queued status by:
-
-- Launching a pristine LXD instance based on matching labels in your runnermap config (image, profiles, type, etc)
-- Provisioning instance with the latest GHA runner client to complete the job.
-- GHA runner automatically shuts down and deregisters when job is complete.
-- Destroying the LXD instance, just like GitHub hosted runners.
-
-### Scaling
-KISS, based only on incoming webhooks from GitHub.  For each event 1 runner is launched on the fly.
-
-Instances are ephemeral, automatically deregistered and shutdown on completion.
-
-More complex scaling could be achieved using the GitHub API at the expense of job latency, higher API and resource usage.
-
-After release of the ephemeral feature this is now the recommended scaling strategy. https://docs.github.com/en/actions/hosting-your-own-runners/autoscaling-with-self-hosted-runners
-
-### Limitations:
-
-- Workflow runs fail immediately if no runners with matching labels are registered. Remedy this by manually registering a runner with matching labels that is permanently left in the offline state. In this case runs will be queued.
-- Runner provisioning is based on bash script. Probably doesn't work on anything other than Ubuntu/Debian based distros without modification.
-
 # Development
 
 ## TODO:
 
 - Investigate race condition between cloudinit and setup script adduser
 - Fix TLS verification
-- Limit workers per label-set
 - Dedup queue
-- Don't think pyLXD is thread-safe, investigate.
+- Not sure pyLXD is thread-safe, investigate.
 - Explore alt provisioning methods ( prebaked images, disks mounts, etc )
 - Auto configuration of webhooks through API
 - Auto registration of offline placeholder runners
@@ -107,6 +113,7 @@ After release of the ephemeral feature this is now the recommended scaling strat
 - More tests
 
 ## DONE:
+- Limit workers per label-set
 - Remote LXD server and image support
 - Add support for multiple label maps
 - Make changes for ephemeral fix. actions/runner issue 510

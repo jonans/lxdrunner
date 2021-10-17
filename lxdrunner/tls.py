@@ -1,20 +1,19 @@
 import datetime
-import platform
 import getpass
+import platform
 import ssl
 from urllib.parse import urlparse
 
-from cryptography import x509
-from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.backends import default_backend
 import pylxd
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 
+from . import lxd
 from .appconf import config as cfg
 from .applog import log
-from .lxd import LXDRunner
 
 
 def gen_priv_key():
@@ -138,7 +137,7 @@ def confirm_certs():
             if not confirm_accept_peer():
                 continue
             # FIX TLS VERIFICATION
-            client = LXDRunner.get_client(remote, verify=False)
+            client = lxd.get_client(rname, verify=False)
             authenticate(client)
             with path.open("wb") as certfile:
                 certfile.write(pem.encode('utf-8'))

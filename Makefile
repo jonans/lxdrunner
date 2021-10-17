@@ -3,15 +3,15 @@
 .PHONY: install-piptools install-deps install-dev update-deps tests install-user-unit setup-install pip-install
 
 upgrade-pip:
-	python3 -m pip install --upgrade pip
+	python3 -m pip install --upgrade pip wheel setuptools
 
 install-piptools:
 	pip3 install pip-tools toml
 
-install-deps:
+install-reqs:
 	pip3 install -r requirements.txt
 
-install-deps-dev: install-piptools
+install-reqs-dev: install-piptools
 	pip3 install -r requirements.dev.txt
 
 update-requirements:
@@ -26,6 +26,7 @@ install-dev:
 
 lint:
 	flake8
+
 tests:
 	pytest -vs --disable-warnings tests
 
@@ -39,6 +40,6 @@ install-user-unit:
 setup-install:
 	python3 setup.py install
 
-pip-install:
-	pip install ./
+packages:
+	python3 setup.py sdist bdist_wheel
 

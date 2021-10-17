@@ -3,13 +3,12 @@
 import hmac
 import logging
 
-from flask import Flask
-from flask import request
+from flask import Flask, current_app, request
 
 from .appconf import config as cfg
 from .applog import log
 
-app = Flask("LXDrun")
+app = Flask("LXDRun")
 
 
 def validate_webhook():
@@ -18,6 +17,10 @@ def validate_webhook():
     evt = request.headers.get("X-GitHub-Event")
     failmsg = f"Webhook HMAC failed {evt}"
     sig = request.headers.get("X-Hub-Signature-256")
+
+    if not evt:
+        log.warning("Not a Github webhook event")
+        return False
 
     if not sig:
         log.warning(failmsg + "missing X-Hub-Signature-256")
@@ -39,10 +42,6 @@ def validate_webhook():
 def githubhook():
     ghevt = request.headers.get("X-GitHub-Event")
 
-    if not ghevt:
-        log.debug("Not a Github webhook event")
-        return "UNAUTHORIZED", 401
-
     if not validate_webhook():
         return "UNAUTHORIZED", 401
 
@@ -55,23 +54,23 @@ def githubhook():
         or "self-hosted" not in job.get("labels")
     ):
 
-        log.debug(f"Skipping event: {ghevt} , action={data['action']}")
+        log.debug(f"Skipping event: {ghevt} , action={data.get('action')}")
         return "Skipping Event"
 
     gh = dict(
-        check_run_id=job.get("id"),
+        wf_job_id=job.get("id"),
         repo=data.get("repository", {}).get("name"),
         owner=data.get("repository", {}).get("owner", {}).get("login"),
         org=data.get("organization", {}).get("login"),
         labels=job.get("labels")
     )
     log.info(f"Accepted event: {ghevt} , action={data['action']}")
-    app.queue_evt(gh)
+    current_app.queue_evt(gh)
+
     return "OK"
 
 
 def startserver(queue_evt):
     app.queue_evt = queue_evt
-    #app.logger.setLevel(logging.WARN)
     tls = 'adhoc' if cfg.web_tls else None
     app.run(host=str(cfg.web_host), port=cfg.web_port, ssl_context=tls)

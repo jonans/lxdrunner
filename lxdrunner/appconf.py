@@ -1,19 +1,26 @@
-import typing
-import ipaddress
-import pathlib
 import importlib.resources
-import urllib.parse
+import ipaddress
+import os
+import pathlib
 import threading
+import typing
+import urllib.parse
 
 import xdg
 from goodconf import GoodConf
-from pydantic import BaseModel, IPvAnyAddress, constr, root_validator, validator
+from pydantic import (
+    BaseModel, IPvAnyAddress, constr, root_validator, validator
+)
 
 with importlib.resources.path('lxdrunner.scripts', 'setuprunner.sh') as path:
     def_script = path
 
 appname = "lxdrunner"
-def_config = xdg.xdg_config_home() / f"{appname}/config.yml"
+
+def_configs = [
+    pathlib.Path("config.yml"),
+    xdg.xdg_config_home() / f"{appname}/config.yml"
+]
 
 
 class RunnerConf(BaseModel):
@@ -92,7 +99,7 @@ class AppConfig(GoodConf):
     def_org_args: dict = {}
 
     class Config:
-        default_files = ["config.yml", def_config]
+        default_files = def_configs
         file_env_var = "LXDRCFG"
 
     @root_validator
@@ -115,6 +122,9 @@ class AppConfig(GoodConf):
     def app_paths(self):
         return [self.config_home, self.cache_home
                 ] + list(self.dirs.dict().values())
+
+    def config_exists(self):
+        return [cfgfile for cfgfile in def_configs if cfgfile.exists()]
 
 
 config = AppConfig(load=False)

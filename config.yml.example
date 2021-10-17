@@ -55,7 +55,7 @@ runnermap:
 
   - name: Ubuntu Virtual Machine Runner
     labels: [self-hosted, x64, linux, vm]
-    image: ubuntu/focal/cloud/vm
+    image: ubuntu:focal
     type: virtual-machine
     runner_arch: x64
     runner_os: linux

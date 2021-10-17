@@ -16,10 +16,9 @@ on:
 jobs:
   # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: self-hosted
     # runs-on: ubuntu-20.04
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
@@ -35,18 +34,39 @@ jobs:
       - name: Development Install
         run: |
           . ./venv/bin/activate
-          pip install -U wheel pip
-          make install-dev
+          make upgrade-pip install-dev
 
       - name: Run pytest
         run: |
           . ./venv/bin/activate
           make tests
 
+      - name: Build Packages
+        run: |
+          . ./venv/bin/activate
+          make packages
+          WHEEL=$(basename dist/*.whl)
+          echo "WHEEL=$WHEEL" >> $GITHUB_ENV
+
       - name: Setup LXD
         run: |
           sudo ./scripts/setup-lxd.sh
 
-      - name: Build LXD image
-        run: ./scripts/build-image.sh
+      - name: Build LXD Alpine image
+        run: ./scripts/build-alpine-image.sh
 
+      - name: Export LXD Image:
+        run: |
+          lxc stop lxdrunner-build
+          lxc publish lxdrunner-build --alias lxdrunner
+          lxc image export lxdrunner lxdrunner-alpine.img
+
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
+          prerelease: true
+          title: "Development Build"
+          files: |
+            lxdrunner-alpine.img.tar.gz
+            dist/${{ env.WHEEL }}

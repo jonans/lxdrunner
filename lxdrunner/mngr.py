@@ -1,31 +1,20 @@
 #!/usr/bin/env python3
 
+import datetime
 import os
 import os.path
+import queue
+import tempfile
 import time
 import urllib.request
-import datetime
-import queue
-import sched
-import tempfile
-import types
-import threading
 
-from ghapi.all import GhApi
 import fastcore.net
 import schedule
+from ghapi.all import GhApi
 
-from .applog import log
+from . import dtypes, lxd, tls, util, web
 from .appconf import config as cfg
-
-from . import web
-from . import lxd
-from . import util
-from . import dtypes
-from . import tls
-#
-# Classes
-#
+from .applog import log
 
 
 class RunManager:
@@ -34,8 +23,6 @@ class RunManager:
     def __init__(self):
         self.ghapi = GhApi(token=cfg.pat)
         self.lxd = lxd.LXDRunner(connect=False)
-        self.schedq = sched.scheduler()
-        self.evtq = queue.PriorityQueue()
         self.runnermap = {item.labels: item for item in cfg.runnermap}
         self.queues = {item.labels: queue.Queue() for item in cfg.runnermap}
         # For testing
@@ -139,7 +126,7 @@ class RunManager:
                     org = wfrun.repository.owner.login
                 events.append(
                     dict(
-                        check_run_id=job.id,
+                        wf_job_id=job.id,
                         repo=wfrun.repository.name,
                         owner=wfrun.repository.owner.login,
                         org=org,
@@ -181,7 +168,6 @@ class RunManager:
         self.pkgs = list(map(asset2pkg, rels[0].assets))
         return self.pkgs
 
-    @schedule.repeat(schedule.every().day)
     def update_pkg_cache(self):
         " Update runner package cache to latest version "
 
@@ -256,7 +242,6 @@ class RunManager:
                     **ghargs
                 )
 
-    @schedule.repeat(schedule.every(12).hours)
     def cleanup(self):
         " Run Github cleanup tasks "
 
@@ -289,13 +274,13 @@ class RunManager:
         evt = dtypes.RunnerEvent(**evt)
         self.queues[labels].put((time.time(), evt))
         log.info(
-            f"Queueing: job run id={evt.check_run_id} {evt.owner}/{evt.repo}"
+            f"Queueing: job run id={evt.wf_job_id} {evt.owner}/{evt.repo}"
         )
 
     def process_evt(self, evt: dtypes.RunnerEvent):
         " Process RunnerEvent"
         log.info(
-            f"Processing: check_run id={evt.check_run_id} {evt.owner}/{evt.repo}"
+            f"Processing: check_run id={evt.wf_job_id} {evt.owner}/{evt.repo}"
         )
 
         evt.token = self.get_reg_token(evt.dict()).token
@@ -314,7 +299,6 @@ class RunManager:
                         (ts, evt) = evtq.get()
                         self.process_evt(evt)
                     except queue.Empty as e:
-                        print("EMPTY Q")
                         break
                     except Exception as e:
                         log.error("Error processing queue")
@@ -352,4 +336,4 @@ class RunManager:
         self.submit_pending_runs()
 
         schedule.every().day.do(self.update_pkg_cache)
-        schedule.every().day.do(self.cleanup)
+        schedule.every(12).hours.do(self.cleanup)

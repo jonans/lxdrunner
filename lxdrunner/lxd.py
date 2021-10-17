@@ -1,23 +1,34 @@
 #!/usr/bin/env python3
 
+import json
+import logging
 import os
 import os.path
-import time
-import logging
 import pathlib
+import threading
+import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
+
 import pylxd
 import pylxd.exceptions
 import urllib3
-import json
-import threading
-from concurrent.futures import ThreadPoolExecutor
 
-from .applog import log
-from .appconf import config as cfg
 from . import util
+from .appconf import config as cfg
+from .applog import log
 
 urllib3.disable_warnings()
+
+
+def get_client(rname="main", verify=False):
+    cert = None
+    remote = cfg.remotes.get(rname)
+    if remote.addr and remote.addr.startswith("https://"):
+        cert = cfg.key_pair_paths()
+
+    log.info(f"Connecting to LXD: {remote.addr or 'local unix-socket'}")
+    return pylxd.Client(endpoint=remote.addr, cert=cert, verify=verify)
 
 
 class LXDRunner:
@@ -29,19 +40,8 @@ class LXDRunner:
         self.workers = dict()
         self.pool = ThreadPoolExecutor(cfg.max_workers)
 
-    @staticmethod
-    def get_client(remote, verify=False):
-        cert = None
-        remote = cfg.remotes.get("main")
-        if remote.addr and remote.addr.startswith("https://"):
-            cert = cfg.key_pair_paths()
-
-        log.info(f"Connecting to LXD: {remote.addr or 'local unix-socket'}")
-        return pylxd.Client(endpoint=remote.addr, cert=cert, verify=verify)
-
     def connect(self):
-        remote = cfg.remotes.get('main')
-        self.client = LXDRunner.get_client(remote)
+        self.client = get_client("main")
 
     def pushfile(self, src, instance, dst, **exargs):
         " Push file into instance "
@@ -203,9 +203,9 @@ class LXDRunner:
 
     def watch_lxd_events(self):
 
-        client = LXDRunner.get_client(cfg.remotes.get('main'))
+        client = get_client('main')
 
-        ## Work around for bug in pylxd 2.3.0 : WSS not using certs
+        ## Workaround for bug in pylxd 2.3.0 : WSS not using certs
         ssl_options = {}
         if client.api.scheme == 'https':
             ssl_options.update(
@@ -218,6 +218,8 @@ class LXDRunner:
         class FixedWSClient(pylxd.client._WebsocketClient):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs, ssl_options=ssl_options)
+
+        ## END workaround
 
         def process_message(message):
             if message.is_text:
