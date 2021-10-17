@@ -53,6 +53,7 @@ jobs:
       - name: Setup LXD
         run: |
           sudo ./scripts/setup-lxd.sh
+          sudo adduser runner lxd
 
       - name: Build LXD Alpine image
         run: ./scripts/build-alpine-image.sh
