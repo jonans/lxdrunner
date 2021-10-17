@@ -57,7 +57,8 @@ jobs:
       - name: Setup LXD
         run: |
           sudo ./scripts/setup-lxd.sh
-          sudo adduser runner lxd
+          # Runner user can't acquire lxd group without exiting.
+          sudo chown root.runner /var/snap/lxd/common/lxd/unix.socket
 
       - name: Build LXD Alpine image
         run: ./scripts/build-alpine-image.sh
