@@ -55,7 +55,7 @@ jobs:
       - name: Build LXD Alpine image
         run: ./scripts/build-alpine-image.sh
 
-      - name: Export LXD Image:
+      - name: Export LXD Image
         run: |
           lxc stop lxdrunner-build
           lxc publish lxdrunner-build --alias lxdrunner
