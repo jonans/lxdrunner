@@ -16,7 +16,9 @@ on:
 jobs:
   # This workflow contains a single job called "build"
   build:
-    runs-on: self-hosted, vm
+    runs-on:
+      - self-hosted
+      - vm
     # runs-on: ubuntu-20.04
     
     steps:
