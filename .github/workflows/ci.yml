@@ -11,6 +11,10 @@ on:
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+    inputs:
+      remote_debug:
+        required: false
+        default: false
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -73,3 +77,10 @@ jobs:
           files: |
             lxdrunner-alpine.img.tar.gz
             dist/${{ env.WHEEL }}
+
+
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+        if: ${{ ( github.event_name == 'workflow_dispatch' && github.event.inputs.remote_debug) || failure() }}
+        timeout-minutes: 5
+
