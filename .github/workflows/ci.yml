@@ -72,7 +72,7 @@ jobs:
           lxc image export lxdrunner lxdrunner-alpine.img
 
       - uses: "marvinpinto/action-automatic-releases@latest"
-        if: ${{ github.event.release.tag_name != "" }}
+        if: ${{ github.event.release.tag_name }}
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           files: |
