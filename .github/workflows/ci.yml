@@ -40,7 +40,10 @@ jobs:
       - name: Development Install
         run: |
           . ./venv/bin/activate
-          make upgrade-pip install-dev
+          python3 -m pip install -U pip
+          python3 -m pip install -U setuptools
+          python3 -m pip install -U wheel
+          make install-dev
 
       - name: Run pytest
         run: |
