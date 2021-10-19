@@ -18,7 +18,7 @@ END
 
 MY_UID=$(lxc exec $CONTNAME -- id -u $USER )
 VERSION=$(python3 setup.py --version)
-WHEEL=lxdrunner-$VERSION-py3-none-any.whl
+WHEEL=$(basename dist/*.whl)
 
 lxc file push dist/$WHEEL $CONTNAME/home/$USER/
 
