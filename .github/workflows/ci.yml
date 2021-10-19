@@ -52,7 +52,9 @@ jobs:
           . ./venv/bin/activate
           make packages
           WHEEL=$(basename dist/*.whl)
+          PKGVER=$(python3 ./setup.py --version)
           echo "WHEEL=$WHEEL" >> $GITHUB_ENV
+          echo "PKGVER=$PKGVER" >> $GITHUB_ENV
 
       - name: Setup LXD
         run: |
@@ -70,15 +72,23 @@ jobs:
           lxc image export lxdrunner lxdrunner-alpine.img
 
       - uses: "marvinpinto/action-automatic-releases@latest"
+        if: ${{ github.event.release.tag_name }} != ""
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "latest"
-          prerelease: true
-          title: "Development Build"
           files: |
             lxdrunner-alpine.img.tar.gz
             dist/${{ env.WHEEL }}
 
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        if: contains( ${{ env.PKGVER }}, 'dev')
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
+          prerelease: true
+          title: "Development Build ${{ env.PKGVER }}"
+          files: |
+            lxdrunner-alpine.img.tar.gz
+            dist/${{ env.WHEEL }}
 
       - name: Setup upterm session
         uses: lhotari/action-upterm@v1

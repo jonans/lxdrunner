@@ -13,13 +13,16 @@ from .applog import log
 from .mngr import RunManager
 from . import __version__
 
+
 def conf_list():
     files = [str(fname) for fname in appconf.def_configs]
     return f"[ {' | '.join(files) } ]"
 
 
 def cliparse():
-    parser = argparse.ArgumentParser(description=f'LXDRunner version {__version__}')
+    parser = argparse.ArgumentParser(
+        description=f'LXDRunner version {__version__}'
+    )
     parser.prog = vars(sys.modules[__name__])['__package__']
     helptext = f"Configuration file. Default: { conf_list() }"
     parser.add_argument(
@@ -33,8 +36,11 @@ def cliparse():
         default=logging.getLevelName(log.level)
     )
 
-    parser.add_argument('-v', action='version',
-            version='%(prog)s {version}'.format(version=__version__))
+    parser.add_argument(
+        '-v',
+        action='version',
+        version='%(prog)s {version}'.format(version=__version__)
+    )
     return parser
 
 

@@ -73,19 +73,9 @@ Repeat these steps once for each organization and/or user repo you want serviced
      - Workflow jobs
   - **Active**: Ensure its checked.
 
-- Manually register one GHA runner for each set of labels that is always offline. This prevents workflow runs from failing immediately when no matching runners are registered. This placeholder runner should NOT have the prefix "lxdrunner"
+- Manually register one GHA runner for each set of labels you will use and keep this runner offline. This prevents workflow runs from failing immediately when no matching runners are registered. This placeholder runner should NOT have the prefix "lxdrunner"
   
   https://docs.github.com/en/actions/hosting-your-own-runners/adding-self-hosted-runners
-
-### LXDRunner Manual Install
-
-Requirements: Python 3.8 with pip
-
-- Clone this repo. Setup python virtual env if needed.
-- Install requirements: `pip install -r requirements.txt`
-- Create configuration as detailed below.
-- Run LXDRunner from directory : `python -m lxdrunner`
-- You can install `lxdrunner` to default locations with: `pip install ./`
 
 ### LXDRunner Configuration
 
@@ -98,7 +88,36 @@ Requirements: Python 3.8 with pip
       such as name, image source, profiles, container type, etc.
 - Run some github actions workflows to test.
 
+### LXDRunner Installation
+
+Requirements: Python 3.8 with pip
+
+The simplest methods are using pip to install a whl package or downloading an LXD image. Download the [latest release](https://github.com/selfbuilt/lxdr/releases/tag/latest).
+
+- Install with pip:
+   
+   ```pip install lxdrunner-0.5.0-py3-none-any.whl```
+
+- Install Alpine based LXD image:
+   
+   ```
+   # Import image into LXD and start container
+   lxc image import --alias lxdrunner lxdrunner-alpine.img.tar.gz
+   lxc launch lxdrunner lxdrunner
+   ```
+
 # Development
+
+## LXDRunner Development Install
+
+Requirements: Python 3.8 with pip
+
+- Clone this repo. Setup python virtual env if needed.
+- Install with:
+   ```pip install -e ".[dev]"```
+- Create configuration as detailed below.
+- Run LXDRunner from directory : `python -m lxdrunner`
+- You can install `lxdrunner` to default locations with: `pip install ./`
 
 ## TODO:
 
