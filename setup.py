@@ -13,4 +13,8 @@ version_config = {
     "dirty_template": "{tag}.dev{ccount}+{branch}.{sha}",
 }
 
-setuptools.setup(version_config=version_config)
+
+setuptools.setup(
+    use_scm_version=True,
+    setup_requires=['setuptools_scm'],
+)
