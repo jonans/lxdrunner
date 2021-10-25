@@ -71,14 +71,14 @@ jobs:
         run: |
           lxc stop lxdrunner-build
           lxc publish lxdrunner-build --alias lxdrunner
-          lxc image export lxdrunner lxdrunner-alpine.img
+          lxc image export lxdrunner dist/lxdrunner-alpine.img
 
       - uses: "marvinpinto/action-automatic-releases@latest"
         if: ${{ github.event.release.tag_name }}
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           files: |
-            lxdrunner-alpine.img.tar.gz
+            dist/lxdrunner-alpine.img.tar.gz
             dist/${{ env.WHEEL }}
 
       - uses: "marvinpinto/action-automatic-releases@latest"
@@ -89,11 +89,10 @@ jobs:
           prerelease: true
           title: "Development Build ${{ env.PKGVER }}"
           files: |
-            lxdrunner-alpine.img.tar.gz
+            dist/lxdrunner-alpine.img.tar.gz
             dist/${{ env.WHEEL }}
 
       - name: Setup upterm session
         uses: lhotari/action-upterm@v1
         if: ${{ ( github.event_name == 'workflow_dispatch' && github.event.inputs.remote_debug) || failure() }}
         timeout-minutes: 5
-
