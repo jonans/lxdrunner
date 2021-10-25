@@ -15,6 +15,5 @@ version_config = {
 
 
 setuptools.setup(
-    use_scm_version=True,
-    setup_requires=['setuptools_scm'],
+    version_config=version_config,
 )
