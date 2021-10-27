@@ -81,8 +81,3 @@ jobs:
           files: |
             dist/lxdrunner-alpine.img.tar.gz
             dist/${{ env.WHEEL }}
-      
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
-        if: ${{ ( github.event_name == 'workflow_dispatch' && github.event.inputs.remote_debug) || failure() }}
-        timeout-minutes: 5
