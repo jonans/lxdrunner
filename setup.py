@@ -13,7 +13,4 @@ version_config = {
     "dirty_template": "{tag}.dev{ccount}+{branch}.{sha}",
 }
 
-
-setuptools.setup(
-    version_config=version_config,
-)
+setuptools.setup(version_config=version_config, )

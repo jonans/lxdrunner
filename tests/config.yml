@@ -31,9 +31,7 @@ remotes:
     protocol: simplestreams
 
 # The config below maps a set of runner labels to specific LXD
-# settings (image, profile, and type). Currently this is limited
-# to a single chosen configuration until a method is found
-# to associate check_runs to labels.
+# settings (image, profile, and type).
 
 runnermap:
 
@@ -46,23 +44,23 @@ runnermap:
   # profiles:     default = default
   # setup_script: default = internal script in lxdrunner/scripts/setuprunner.sh
 
-  - name: Ubuntu Container Runner
+  - name: Ubuntu - Container Runner
     labels: [ self-hosted ]
-    image: ubuntu/focal/cloud
+    image: ubuntu:focal
     type: container
     runner_arch: x64
     runner_os: linux
 
-  - name: Ubuntu Virtual Machine Runner
-    labels: [self-hosted, x64, linux, vm]
-    image: ubuntu/focal/cloud/vm
+  - name: Ubuntu - Virtual Machine Runner
+    labels: [ self-hosted, vm ]
+    image: ubuntu:focal
     type: virtual-machine
     runner_arch: x64
     runner_os: linux
 
-  - name: Debian 10 Container Runner
-    labels: [self-hosted, x64, linux, debian]
-    image: debian/10/cloud
+  - name: Debian 11 - Container Runner
+    labels: [ self-hosted, debian ]
+    image: images:debian/11/cloud
     profiles: [ default ]
     type: container
     runner_arch: x64

@@ -225,13 +225,9 @@ class RunManager:
             ghargs['runner_id'] = run.id
             if ghargs.get("org"):
                 log.info(
-                    "Remove offline runner {org} {runner_id}".format(
-                        **ghargs
-                    )
+                    "Remove offline runner {org} {runner_id}".format(**ghargs)
                 )
-                self.ghapi.actions.delete_self_hosted_runner_from_org(
-                    **ghargs
-                )
+                self.ghapi.actions.delete_self_hosted_runner_from_org(**ghargs)
             else:
                 log.info(
                     "Remove offline runner {owner}/{repo} {runner_id}".format(

@@ -21,10 +21,16 @@ VERSION=$(python3 setup.py --version)
 WHEEL=$(basename dist/*.whl)
 
 lxc file push dist/$WHEEL $CONTNAME/home/$USER/
+lxc file push config.yml.example $CONTNAME/home/$USER/config.yml
 
 lxc exec $CONTNAME --user $MY_UID --group $MY_UID -- sh <<-END
  cd ~$USER
  echo 'PATH=~/.local/bin/:$PATH' > ~$USER/.profile
  pip3 install ./$WHEEL
+END
+
+lxc file push service/lxdrunner.openrc $CONTNAME/etc/init.d/lxdrunner
+lxc exec $CONTNAME -- sh <<-END
+ rc-update add lxdrunner
 END
 

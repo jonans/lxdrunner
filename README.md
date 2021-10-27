@@ -86,6 +86,8 @@ Repeat these steps once for each organization and/or user repo you want serviced
     - Setup remotes
     - Setup the runnermap. This section maps a set of actions workflow labels to specific LXD settings
       such as name, image source, profiles, container type, etc.
+- LXDrunner will search for config.yml in current directory or $HOME/.config/lxdrunner/config.yml . Specify
+explicit location with   ```lxdrunner -c path/to/config.yml```
 - Run some github actions workflows to test.
 
 ### LXDRunner Installation
@@ -98,6 +100,8 @@ The simplest methods are using pip to install a whl package or downloading an LX
    
    ```pip install lxdrunner-0.5.0-py3-none-any.whl```
 
+   Create config.yml. Start with ```lxdrunner -c config.yml```
+
 - Install Alpine based LXD image:
    
    ```
@@ -105,6 +109,8 @@ The simplest methods are using pip to install a whl package or downloading an LX
    lxc image import --alias lxdrunner lxdrunner-alpine.img.tar.gz
    lxc launch lxdrunner lxdrunner
    ```
+   Create configuration file in /home/app/.config/lxdrunner/config.yml
+   
 
 # Development
 
