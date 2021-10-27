@@ -1,6 +1,6 @@
 #!/bin/bash -x
 
-set -e
+set -eu
 exec 2>&1
 
 PKGDIR="/opt/runner"
@@ -21,7 +21,7 @@ fail() {
 [ -f $SETUPFILE ] && source $SETUPFILE
 
 # Ensure required vars are set
-
+ERRS=""
 for var in $CHECK_ARGS ; do
     eval val=\$$var
     if [ -z "$val" ] ; then
@@ -42,6 +42,7 @@ setup_user(){
     [ "$?" -eq "0" ] || fail "Add user failed"
     adduser runner sudo
     [ "$?" -eq "0" ] || fail "Add group failed"
+    echo "runner ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/runner
 }
 
 # Package handling
@@ -67,14 +68,17 @@ background(){
 }
 
 start_runner(){
-  sudo -u $RUNNERUSER ./run.sh --once
-  sudo -u $RUNNERUSER ./config.sh remove --unattended --token "$GHA_TOKEN"
+  sudo -u $RUNNERUSER ./run.sh
   delaypoweroff
 }
 
 reg_runner(){
   sudo -u $RUNNERUSER ./config.sh --unattended --url "$GHA_URL" --token "$GHA_TOKEN" \
-     --replace --name "$GHA_NAME" --labels "$GHA_EXTRA_LABELS"
+     --replace --name "$GHA_NAME" --labels "$GHA_EXTRA_LABELS" --ephemeral
+}
+
+dereg_runner(){
+  sudo -u $RUNNERUSER ./config.sh remove --unattended --token "$GHA_TOKEN"
 }
 
 begin_runner(){

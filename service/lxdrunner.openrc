@@ -1,0 +1,13 @@
+#!/sbin/openrc-run
+
+name="LXDRunner"
+description="Emphemeral selfhosted runners"
+command="/home/app/.local/bin/lxdrunner"
+pidfile="/var/run/$SVCNAME.pid"
+command_background=true
+command_user="app:app"
+
+depend() {
+	need logger
+}
+

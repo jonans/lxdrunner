@@ -6,4 +6,4 @@ Flask
 pydantic
 goodconf[yaml]>=2.0.*
 schedule
-
+xdg

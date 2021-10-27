@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
 import hmac
+import logging
 
-from flask import Flask
-from flask import request
+from flask import Flask, current_app, request
 
 from .appconf import config as cfg
 from .applog import log
 
-app = Flask("LXDrun")
+app = Flask("LXDRun")
 
 
 def validate_webhook():
@@ -17,6 +17,10 @@ def validate_webhook():
     evt = request.headers.get("X-GitHub-Event")
     failmsg = f"Webhook HMAC failed {evt}"
     sig = request.headers.get("X-Hub-Signature-256")
+
+    if not evt:
+        log.warning("Not a Github webhook event")
+        return False
 
     if not sig:
         log.warning(failmsg + "missing X-Hub-Signature-256")
@@ -29,8 +33,8 @@ def validate_webhook():
     result = hmac.compare_digest(mac, sig)
     if not result:
         log.warning(failmsg)
-        log.info(f"- HMAC: { mac }")
-        log.info(f"- GHSIG: { sig }")
+        log.debug(f"- HMAC: { mac }")
+        log.debug(f"- GHSIG: { sig }")
     return result
 
 
@@ -38,31 +42,31 @@ def validate_webhook():
 def githubhook():
     ghevt = request.headers.get("X-GitHub-Event")
 
-    if not ghevt:
-        log.warning("Not a Github webhook event")
-        return "UNAUTHORIZED", 401
-
     if not validate_webhook():
         return "UNAUTHORIZED", 401
 
     data = request.json
 
-    # Event should be check_run, app == actions and status == queued
+    job = data.get("workflow_job", {})
+    # Event should be workflow_job, status == queued, self-hosted
     if (
-        ghevt != "check_run" or data.get("check_run").get("status") != "queued"
-        or data.get("check_run").get("app").get("slug") != "github-actions"
+        ghevt != "workflow_job" or job.get("status") != "queued"
+        or "self-hosted" not in job.get("labels")
     ):
 
-        log.info(f"Skipping event: {ghevt}")
+        log.debug(f"Skipping event: {ghevt} , action={data.get('action')}")
         return "Skipping Event"
 
     gh = dict(
-        check_run_id=data.get("check_run", {}).get("id"),
+        wf_job_id=job.get("id"),
         repo=data.get("repository", {}).get("name"),
         owner=data.get("repository", {}).get("owner", {}).get("login"),
         org=data.get("organization", {}).get("login"),
+        labels=job.get("labels")
     )
-    app.queue_evt(gh)
+    log.info(f"Accepted event: {ghevt} , action={data['action']}")
+    current_app.queue_evt(gh)
+
     return "OK"
 
 

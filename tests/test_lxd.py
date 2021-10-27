@@ -48,6 +48,22 @@ def test_push_file(lxdm):
     instance.files.put.assert_called_with("/root/file", b'', mode="0600")
 
 
+@mock.patch("lxdrunner.lxd.pylxd.Client")
+def test_get_client(m_client, lxdm):
+    lxdrunner.lxd.get_client("main")
+    remote = cfg.remotes['main']
+    assert m_client.call_args.kwargs == dict(
+        endpoint=remote.addr, cert=None, verify=False
+    )
+
+    m_client.reset_mock()
+    lxdrunner.lxd.get_client("ubuntu")
+    remote = cfg.remotes['ubuntu']
+    assert m_client.call_args.kwargs == dict(
+        endpoint=remote.addr, cert=cfg.key_pair_paths(), verify=False
+    )
+
+
 def test_get_workers(lxdm):
     lxdm.client.instances.all.return_value = lxd_workers + non_workers
     workers = lxdm.get_workers()
@@ -77,7 +93,7 @@ def test_launch_instance(lxdm):
         name=instname,
         ephemeral=True,
         profiles=goodrc.profiles,
-        source=dict(type="image", alias=goodrc.image),
+        source=dict(type="image", alias=goodrc.image, mode="pull"),
         type=goodrc.type
     )
     lxdm.launch_instance(instname, goodrc)
@@ -109,3 +125,23 @@ def test__cleanup_instance(lxdm):
     assert lxdm._cleanup_instance(
         "randomname"
     ) is False, "LXD lookup should have failed"
+
+
+def test_cleanup_instance(lxdm):
+    res = lxdm._cleanup_instance("fake-instance")
+    assert res == True, "Cleanup should succeed"
+
+    lxdm.client.reset_mock()
+
+    cfg.cleanup = False
+    res = lxdm._cleanup_instance("fake-instance")
+    assert res == False, "Cleanup should be disabled"
+
+    lxdm.client.reset_mock()
+
+    cfg.cleanup = True
+    lxdm.client.instances.get.side_effect = pylxd.exceptions.LXDAPIException(
+        "Instance does not exist"
+    )
+    res = lxdm._cleanup_instance("fake-instance")
+    assert res == False, "Cleanup should fail due to exception."

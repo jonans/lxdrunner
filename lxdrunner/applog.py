@@ -3,7 +3,7 @@ import logging
 logging.basicConfig()
 log = logging.getLogger("LXDrun")
 log.propagate = False
-log.setLevel(logging.INFO)
+log.setLevel("WARNING")
 
 logfmt = logging.Formatter('%(threadName)s: %(message)s')
 handler = logging.StreamHandler()

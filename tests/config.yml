@@ -3,58 +3,66 @@
 pat: "fake_github_pat"
 hooksecret: "fake_webhook_secret"
 
-# LXD Configuration
-
-socket: /var/snap/lxd/common/lxd/unix.socket
-
 # LXD Runner Configuration
-#
-# Path for runner files cache directory
-pkgdir: pkgcache
-# Path for runner provisioning script
-setupscript: setuprunner.sh
+
 # Prefix used for naming resources ( GH runner names, LXD instances, etc )
 prefix: lxdrunner
-# Maximum number of runners that can run simultaenously
+# Maximum number of concurrent workers
 max_workers: 10
 
 web_host: 0.0.0.0
 web_port: 5000
 web_tls: True
 
+# Remotes for LXD servers.
+#
+# addr: should be https://<hostname>:<port> or unix socket path.
+# main should be primary LXD server to connect with. Default: local unix socket.
+
+remotes:
+  main:
+    addr: 
+    protocol: lxd
+  images:
+    addr: https://images.linuxcontainers.org
+    protocol: simplestreams
+  ubuntu:
+    addr: https://cloud-images.ubuntu.com/releases
+    protocol: simplestreams
+
 # The config below maps a set of runner labels to specific LXD
-# settings (image, profile, and type). Currently this is limited
-# to a single chosen configuration until a method is found
-# to associate check_runs to labels.
+# settings (image, profile, and type).
 
 runnermap:
 
-  - name: Ubuntu Container Runner
-    labels: [self-hosted, x64, linux]
-    image: ubuntu/focal/cloud
-    profiles: [ default ]
+  # name:         required
+  # labels:       required
+  # image:        required
+  # type:         required ( container, virtual-machine )
+  # runner_os:    required ( linux, win, osx )
+  # runner_arch:  required ( x64, arm, arm64 )
+  # profiles:     default = default
+  # setup_script: default = internal script in lxdrunner/scripts/setuprunner.sh
+
+  - name: Ubuntu - Container Runner
+    labels: [ self-hosted ]
+    image: ubuntu:focal
     type: container
     runner_arch: x64
     runner_os: linux
 
-  - name: Debian 10 Container Runner
-    labels: [self-hosted, x64, linux, debian]
-    image: debian/10/cloud
-    profiles: [ default ]
-    type: container
-    runner_arch: x64
-    runner_os: linux
-
-  - name: Ubuntu Virtual Machine Runner
-    labels: [self-hosted, x64, linux, vm]
-    image: ubuntu/focal/cloud/vm
-    profiles: [ default ]
+  - name: Ubuntu - Virtual Machine Runner
+    labels: [ self-hosted, vm ]
+    image: ubuntu:focal
     type: virtual-machine
     runner_arch: x64
     runner_os: linux
 
-# Which of the above settings to use:
+  - name: Debian 11 - Container Runner
+    labels: [ self-hosted, debian ]
+    image: images:debian/11/cloud
+    profiles: [ default ]
+    type: container
+    runner_arch: x64
+    runner_os: linux
 
-activecfg: [self-hosted, x64, linux]
-
-rundelay: 10

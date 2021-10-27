@@ -4,6 +4,7 @@ import secrets
 import threading
 
 from .appconf import config as cfg
+
 #
 # Helper Functions
 #
@@ -16,14 +17,7 @@ def has_prefix(name):
 
 def make_name():
     " Generate name based on prefix and random token "
-
     return "{}-{}".format(cfg.prefix, secrets.token_hex(3))
-
-
-def linkname(pkg):
-    " Add linkname to pkg "
-    pkg.linkname = "-".join(pkg.filename.split('-')[:4] + ['latest'])
-    return pkg
 
 
 def threadit(func, **kwargs):
@@ -38,3 +32,18 @@ def env_str(data):
     for key, val in data.items():
         sdata += f"{key}={val}\n"
     return sdata
+
+
+def image_to_source(image):
+    " Convert image resource [<remote>:]<image>  to source object "
+    alias = image
+    source = dict(type="image", mode="pull")
+
+    if ":" in image:
+        remote_name, alias = image.split(":", 1)
+        remote = cfg.remotes.get(remote_name)
+        source['protocol'] = remote.protocol
+        source['server'] = remote.addr
+
+    source['alias'] = alias
+    return source

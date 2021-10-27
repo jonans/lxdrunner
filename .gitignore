@@ -4,3 +4,7 @@
 /dist
 /pkgcache
 __pycache__
+*.egg-info
+/.eggs
+/venv
+

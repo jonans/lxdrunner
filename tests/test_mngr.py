@@ -52,23 +52,23 @@ def mngr():
         yield mn
 
 
-def test_get_token_doesnt_exist(mngr):
-    mngr.get_token(data.org_args)
+def test_get_reg_token_doesnt_exist(mngr):
+    mngr.get_reg_token(data.org_args)
     assert mngr.ghapi.actions.create_registration_token_for_org.called
     mngr.ghapi.reset_mock()
-    mngr.get_token(data.repo_args)
+    mngr.get_reg_token(data.repo_args)
     assert mngr.ghapi.actions.create_registration_token_for_repo.called
 
 
-def test_get_token_valid(mngr):
+def test_get_reg_token_valid(mngr):
     mngr.reg_tokens = {data.org_args['org']: data.valid_token}
-    mngr.get_token(data.org_args)
+    mngr.get_reg_token(data.org_args)
     assert not mngr.ghapi.actions.create_registration_token_for_org.called
 
 
-def test_get_token_expired(mngr):
+def test_get_reg_token_expired(mngr):
     mngr.reg_tokens = {data.org_args['org']: data.expired_token}
-    mngr.get_token(data.org_args)
+    mngr.get_reg_token(data.org_args)
     assert mngr.ghapi.actions.create_registration_token_for_org.called
 
 
@@ -96,14 +96,17 @@ def touchfile(url, fname):
     Path(fname).touch()
 
 
+@mock.patch.object(cfg.dirs, 'pkgdir')
 @mock.patch('urllib.request.urlretrieve', side_effect=touchfile)
-def test_update_pkg_cache(m_url, mngr, tmpdir):
+def test_update_pkg_cache(m_url, m_pkgdir, mngr, tmp_path):
+    os.chdir(tmp_path)
+    pkgdir = cfg.dirs.pkgdir = tmp_path
+    print("ARGS", type(tmp_path), cfg.dirs.pkgdir)
+
     # Inject list of packages
     mngr.get_packages = mock.Mock()
     mngr.pkgs = data.pkgs
 
-    os.chdir(tmpdir)
-    pkgdir = Path(cfg.pkgdir)
     pkg_cnt = len(data.pkgs)
 
     mngr.update_pkg_cache()
@@ -116,7 +119,7 @@ def test_update_pkg_cache(m_url, mngr, tmpdir):
 
     m_url.reset_mock()
 
-    fp = Path(cfg.pkgdir + "/extra_file")
+    fp = Path(pkgdir / "extra_file")
     fp.touch()
     assert fp.exists(), "extra_file is not present"
 
